@@ -1,134 +1,68 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz_NGOcXVeWDEWVswLCgZ47ylOgnCwrRnFdeaYGEaIk_Ij5pIaEIUO0NbUt4bYy-Pmy/exec';  // Replace with your actual Web App URL
-let drugData = [];
-let dropdown = document.getElementById('dropdown');
-let searchBar = document.getElementById('searchBar');
-let resultsDiv = document.getElementById('results');
+const DB_NAME = "DrugInfoDB";
+const DB_VERSION = 1;
+const STORE_NAME = "drugs";
 
 // Open IndexedDB
 let db;
-let request = indexedDB.open('DrugDB', 1);
+const request = indexedDB.open(DB_NAME, DB_VERSION);
+
 request.onupgradeneeded = function(event) {
-    db = event.target.result;
-    db.createObjectStore('drugs', { keyPath: 'GenericName' });
+    let db = event.target.result;
+    if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "genericName" }); // Make sure this store exists
+    }
 };
+
 request.onsuccess = function(event) {
     db = event.target.result;
-    loadOfflineData();
+    console.log("IndexedDB opened successfully.");
+    fetchData(); // Fetch data from GAS and store it
 };
 
-// Fetch data from Google Apps Script and update IndexedDB
+request.onerror = function(event) {
+    console.error("IndexedDB error:", event.target.errorCode);
+};
+
+// Fetch data from GAS and store it in IndexedDB
 async function fetchData() {
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzoBAlQ38wkelKu8gtA-FIJzllzPgippgHR1z2fgDgUJ1SPm_NEsJzHUgU3PBS-i6c/exec';
+
     try {
         let response = await fetch(GAS_URL);
-        drugData = await response.json();
-        saveToIndexedDB(drugData);
+        let data = await response.json();
+
+        // Store data in IndexedDB
+        let transaction = db.transaction(STORE_NAME, "readwrite");
+        let store = transaction.objectStore(STORE_NAME);
+        store.clear(); // Clear old data before adding new data
+
+        data.forEach(item => {
+            store.put(item);
+        });
+
+        console.log("Data successfully stored in IndexedDB.");
     } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
     }
 }
 
-// Save data to IndexedDB
-function saveToIndexedDB(data) {
-    let transaction = db.transaction(['drugs'], 'readwrite');
-    let store = transaction.objectStore('drugs');
-    store.clear(); // Clear old data
-    data.forEach(drug => store.put(drug));
-}
-
-// Load data from IndexedDB if offline
+// Load data from IndexedDB for offline use
 function loadOfflineData() {
-    let transaction = db.transaction(['drugs'], 'readonly');
-    let store = transaction.objectStore('drugs');
+    if (!db) {
+        console.error("Database is not initialized yet.");
+        return;
+    }
+
+    let transaction = db.transaction(STORE_NAME, "readonly");
+    let store = transaction.objectStore(STORE_NAME);
     let request = store.getAll();
 
-    request.onsuccess = function() {
-        if (request.result.length > 0) {
-            drugData = request.result;
-        }
+    request.onsuccess = function(event) {
+        let offlineData = event.target.result;
+        console.log("Loaded offline data:", offlineData);
+    };
+
+    request.onerror = function(event) {
+        console.error("Error loading offline data:", event.target.error);
     };
 }
-
-// Filter and show dropdown list
-function filterResults() {
-    let query = searchBar.value.toLowerCase();
-    dropdown.innerHTML = '';
-
-    if (!query) {
-        dropdown.style.display = 'none';
-        return;
-    }
-
-    let filteredData = drugData.filter(drug => 
-        drug.GenericName.toLowerCase().startsWith(query)
-    );
-
-    if (filteredData.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-    }
-
-    dropdown.style.display = 'block';
-    filteredData.forEach(drug => {
-        let item = document.createElement('div');
-        item.textContent = drug.GenericName;
-        item.onclick = () => selectDrug(drug);
-        dropdown.appendChild(item);
-    });
-}
-
-// Show details after selection
-function selectDrug(drug) {
-    dropdown.style.display = 'none';
-    searchBar.value = drug.GenericName; // Set selected value
-
-    resultsDiv.innerHTML = `
-        <div class="title">Generic Name:</div>
-        <div class="data">${drug.GenericName}</div>
-
-        <div class="title">Brand:</div>
-        <div class="data">${drug.Brand}</div>
-
-        <div class="title">FUKKM System/Group:</div>
-        <div class="data">${drug.FUKKMSystemGroup}</div>
-
-        <div class="title">MDC:</div>
-        <div class="data">${drug.MDC}</div>
-
-        <div class="title">NEML:</div>
-        <div class="data">${drug.NEML}</div>
-
-        <div class="title">Method of Purchase:</div>
-        <div class="data">${drug.MethodOfPurchase}</div>
-
-        <div class="title">Category:</div>
-        <div class="data">${drug.Category}</div>
-
-        <div class="title">Indications:</div>
-        <div class="data">${drug.Indications}</div>
-
-        <div class="title">Prescribing Restrictions:</div>
-        <div class="data">${drug.PrescribingRestrictions}</div>
-
-        <div class="title">Dosage:</div>
-        <div class="data">${drug.Dosage}</div>
-
-        <div class="title">Adverse Reaction:</div>
-        <div class="data">${drug.AdverseReaction}</div>
-
-        <div class="title">Contraindications:</div>
-        <div class="data">${drug.Contraindications}</div>
-
-        <div class="title">Interactions:</div>
-        <div class="data">${drug.Interactions}</div>
-
-        <div class="title">Precautions:</div>
-        <div class="data">${drug.Precautions}</div>
-
-        <hr>
-    `;
-    
-    resultsDiv.style.display = 'block'; // Show results
-}
-
-// Try fetching data from online
-fetchData();
