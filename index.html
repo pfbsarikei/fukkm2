@@ -7,6 +7,9 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         input { width: 100%; padding: 10px; margin-bottom: 10px; }
+        .dropdown { border: 1px solid #ccc; max-height: 150px; overflow-y: auto; display: none; }
+        .dropdown div { padding: 10px; cursor: pointer; }
+        .dropdown div:hover { background-color: #f0f0f0; }
         .result { margin-top: 20px; }
         .title { font-weight: bold; margin-top: 10px; }
         .data { margin-bottom: 20px; }
@@ -16,6 +19,7 @@
 <body>
     <h2>Drug Information Search</h2>
     <input type="text" id="searchBar" placeholder="Search by Generic Name..." oninput="filterResults()">
+    <div id="dropdown" class="dropdown"></div>
     <div id="results" class="result"></div>
 </body>
 </html>
