@@ -2,6 +2,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbz_NGOcXVeWDEWVswLCgZ47
 let drugData = [];
 let dropdown = document.getElementById('dropdown');
 let searchBar = document.getElementById('searchBar');
+let resultsDiv = document.getElementById('results');
 
 // Fetch data from Google Apps Script
 async function fetchData() {
@@ -13,11 +14,11 @@ async function fetchData() {
     }
 }
 
-// Filter and display dropdown list
+// Filter and show dropdown list
 function filterResults() {
     let query = searchBar.value.toLowerCase();
     dropdown.innerHTML = '';
-    
+
     if (!query) {
         dropdown.style.display = 'none';
         return;
@@ -36,24 +37,23 @@ function filterResults() {
     filteredData.forEach(drug => {
         let item = document.createElement('div');
         item.textContent = drug.GenericName;
-        item.onclick = () => showDetails(drug);
+        item.onclick = () => selectDrug(drug);
         dropdown.appendChild(item);
     });
 }
 
-// Show selected drug details
-function showDetails(drug) {
+// Show details after selection
+function selectDrug(drug) {
     dropdown.style.display = 'none';
     searchBar.value = drug.GenericName; // Set selected value
 
-    let resultsDiv = document.getElementById('results');
     resultsDiv.innerHTML = `
         <div class="title">Generic Name:</div>
         <div class="data">${drug.GenericName}</div>
-        
+
         <div class="title">Brand:</div>
         <div class="data">${drug.Brand}</div>
-        
+
         <div class="title">FUKKM System/Group:</div>
         <div class="data">${drug.FUKKMSystemGroup}</div>
 
@@ -92,6 +92,8 @@ function showDetails(drug) {
 
         <hr>
     `;
+    
+    resultsDiv.style.display = 'block'; // Show results
 }
 
 // Load data when the page loads
