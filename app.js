@@ -4,14 +4,48 @@ let dropdown = document.getElementById('dropdown');
 let searchBar = document.getElementById('searchBar');
 let resultsDiv = document.getElementById('results');
 
-// Fetch data from Google Apps Script
+// Open IndexedDB
+let db;
+let request = indexedDB.open('DrugDB', 1);
+request.onupgradeneeded = function(event) {
+    db = event.target.result;
+    db.createObjectStore('drugs', { keyPath: 'GenericName' });
+};
+request.onsuccess = function(event) {
+    db = event.target.result;
+    loadOfflineData();
+};
+
+// Fetch data from Google Apps Script and update IndexedDB
 async function fetchData() {
     try {
         let response = await fetch(GAS_URL);
         drugData = await response.json();
+        saveToIndexedDB(drugData);
     } catch (error) {
         console.error('Error fetching data:', error);
     }
+}
+
+// Save data to IndexedDB
+function saveToIndexedDB(data) {
+    let transaction = db.transaction(['drugs'], 'readwrite');
+    let store = transaction.objectStore('drugs');
+    store.clear(); // Clear old data
+    data.forEach(drug => store.put(drug));
+}
+
+// Load data from IndexedDB if offline
+function loadOfflineData() {
+    let transaction = db.transaction(['drugs'], 'readonly');
+    let store = transaction.objectStore('drugs');
+    let request = store.getAll();
+
+    request.onsuccess = function() {
+        if (request.result.length > 0) {
+            drugData = request.result;
+        }
+    };
 }
 
 // Filter and show dropdown list
@@ -96,5 +130,5 @@ function selectDrug(drug) {
     resultsDiv.style.display = 'block'; // Show results
 }
 
-// Load data when the page loads
+// Try fetching data from online
 fetchData();
