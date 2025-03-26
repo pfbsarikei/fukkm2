@@ -1,69 +1,68 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzoBAlQ38wkelKu8gtA-FIJzllzPgippgHR1z2fgDgUJ1SPm_NEsJzHUgU3PBS-i6c/exec';
-const DB_NAME = 'DrugDB';
-const STORE_NAME = 'drugs';
+const DB_NAME = "DrugInfoDB";
+const DB_VERSION = 1;
+const STORE_NAME = "drugs";
 
 // Open IndexedDB
 let db;
-const request = indexedDB.open(DB_NAME, 1);
+const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-// Setup database schema
-request.onupgradeneeded = function (event) {
-    db = event.target.result;
+request.onupgradeneeded = function(event) {
+    let db = event.target.result;
     if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "Generic Name" });
+        db.createObjectStore(STORE_NAME, { keyPath: "genericName" }); // Make sure this store exists
     }
 };
 
-// Handle database open success
-request.onsuccess = function (event) {
+request.onsuccess = function(event) {
     db = event.target.result;
-    loadOfflineData();  // Try loading offline data first
-    fetchData();  // Fetch new data from GAS
+    console.log("IndexedDB opened successfully.");
+    fetchData(); // Fetch data from GAS and store it
 };
 
-// Handle errors
-request.onerror = function (event) {
-    console.error('IndexedDB Error:', event.target.error);
+request.onerror = function(event) {
+    console.error("IndexedDB error:", event.target.errorCode);
 };
 
-// Save data to IndexedDB
-function saveToIndexedDB(data) {
-    if (!db) return;
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    store.clear(); // Clear old data
-    data.forEach(item => store.put(item));
-}
-
-// Load data from IndexedDB when offline
-function loadOfflineData() {
-    if (!db) return;
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-
-    request.onsuccess = function () {
-        if (request.result.length > 0) {
-            console.log('Loaded from IndexedDB:', request.result);
-        } else {
-            console.log('No offline data found.');
-        }
-    };
-}
-
-// Fetch online data and update IndexedDB
+// Fetch data from GAS and store it in IndexedDB
 async function fetchData() {
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzoBAlQ38wkelKu8gtA-FIJzllzPgippgHR1z2fgDgUJ1SPm_NEsJzHUgU3PBS-i6c/exec';
+
     try {
         let response = await fetch(GAS_URL);
         let data = await response.json();
-        saveToIndexedDB(data); // Store in IndexedDB
-        console.log('Data updated from online source.');
+
+        // Store data in IndexedDB
+        let transaction = db.transaction(STORE_NAME, "readwrite");
+        let store = transaction.objectStore(STORE_NAME);
+        store.clear(); // Clear old data before adding new data
+
+        data.forEach(item => {
+            store.put(item);
+        });
+
+        console.log("Data successfully stored in IndexedDB.");
     } catch (error) {
-        console.log('Error fetching data:', error);
+        console.error("Error fetching data:", error);
     }
 }
 
+// Load data from IndexedDB for offline use
+function loadOfflineData() {
+    if (!db) {
+        console.error("Database is not initialized yet.");
+        return;
+    }
 
+    let transaction = db.transaction(STORE_NAME, "readonly");
+    let store = transaction.objectStore(STORE_NAME);
+    let request = store.getAll();
 
+    request.onsuccess = function(event) {
+        let offlineData = event.target.result;
+        console.log("Loaded offline data:", offlineData);
+    };
 
-
+    request.onerror = function(event) {
+        console.error("Error loading offline data:", event.target.error);
+    };
+}
