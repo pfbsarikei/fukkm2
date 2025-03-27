@@ -1,20 +1,63 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZSnSPRni8Hezwy0HmQJZ6R9r9JWhRBXmVF-VGEO8aj5WufOtdchhswuf85CWCzBK8/exec';  // Replace with your actual Web App URL
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZSnSPRni8Hezwy0HmQJZ6R9r9JWhRBXmVF-VGEO8aj5WufOtdchhswuf85CWCzBK8/exec';  
+const DB_NAME = "DrugDB";
+const STORE_NAME = "drugs";
 let drugData = [];
 let dropdown = document.getElementById('dropdown');
 let searchBar = document.getElementById('searchBar');
 let resultsDiv = document.getElementById('results');
 
-// Fetch data from Google Apps Script
-async function fetchData() {
-    try {
-        let response = await fetch(GAS_URL);
-        drugData = await response.json();
-    } catch (error) {
-        console.error('Error fetching data:', error);
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadData();
+    registerServiceWorker();
+});
+
+async function loadData() {
+    if (navigator.onLine) {
+        try {
+            const response = await fetch(GAS_URL);
+            drugData = await response.json();
+            saveToIndexedDB(drugData);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            loadFromIndexedDB();
+        }
+    } else {
+        loadFromIndexedDB();
     }
 }
 
-// Filter and show dropdown list
+function saveToIndexedDB(data) {
+    const dbRequest = indexedDB.open(DB_NAME, 1);
+    dbRequest.onupgradeneeded = event => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: "GenericName" });
+        }
+    };
+
+    dbRequest.onsuccess = event => {
+        const db = event.target.result;
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.clear();
+        data.forEach(item => store.put(item));
+    };
+}
+
+function loadFromIndexedDB() {
+    const dbRequest = indexedDB.open(DB_NAME, 1);
+    dbRequest.onsuccess = event => {
+        const db = event.target.result;
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const getAllRequest = store.getAll();
+
+        getAllRequest.onsuccess = () => {
+            drugData = getAllRequest.result;
+        };
+    };
+}
+
 function filterResults() {
     let query = searchBar.value.toLowerCase();
     dropdown.innerHTML = '';
@@ -24,9 +67,7 @@ function filterResults() {
         return;
     }
 
-    let filteredData = drugData.filter(drug => 
-        drug.GenericName.toLowerCase().startsWith(query)
-    );
+    let filteredData = drugData.filter(drug => drug.GenericName.toLowerCase().startsWith(query));
 
     if (filteredData.length === 0) {
         dropdown.style.display = 'none';
@@ -42,59 +83,32 @@ function filterResults() {
     });
 }
 
-// Show details after selection
 function selectDrug(drug) {
     dropdown.style.display = 'none';
-    searchBar.value = drug.GenericName; // Set selected value
+    searchBar.value = drug.GenericName;
 
-    resultsDiv.innerHTML = `
-        <div class="title">Generic Name:</div>
-        <div class="data">${drug.GenericName}</div>
+    resultsDiv.innerHTML = "";
+    Object.keys(drug).forEach(key => {
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = key.replace(/([A-Z])/g, " $1").trim();
 
-        <div class="title">Brand:</div>
-        <div class="data">${drug.Brand}</div>
+        const data = document.createElement("div");
+        data.className = "data";
+        data.textContent = drug[key];
 
-        <div class="title">FUKKM System/Group:</div>
-        <div class="data">${drug.FUKKMSystemGroup}</div>
+        resultsDiv.appendChild(title);
+        resultsDiv.appendChild(data);
+    });
 
-        <div class="title">MDC:</div>
-        <div class="data">${drug.MDC}</div>
-
-        <div class="title">NEML:</div>
-        <div class="data">${drug.NEML}</div>
-
-        <div class="title">Method of Purchase:</div>
-        <div class="data">${drug.MethodOfPurchase}</div>
-
-        <div class="title">Category:</div>
-        <div class="data">${drug.Category}</div>
-
-        <div class="title">Indications:</div>
-        <div class="data">${drug.Indications}</div>
-
-        <div class="title">Prescribing Restrictions:</div>
-        <div class="data">${drug.PrescribingRestrictions}</div>
-
-        <div class="title">Dosage:</div>
-        <div class="data">${drug.Dosage}</div>
-
-        <div class="title">Adverse Reaction:</div>
-        <div class="data">${drug.AdverseReaction}</div>
-
-        <div class="title">Contraindications:</div>
-        <div class="data">${drug.Contraindications}</div>
-
-        <div class="title">Interactions:</div>
-        <div class="data">${drug.Interactions}</div>
-
-        <div class="title">Precautions:</div>
-        <div class="data">${drug.Precautions}</div>
-
-        <hr>
-    `;
-    
-    resultsDiv.style.display = 'block'; // Show results
+    resultsDiv.style.display = 'block';
 }
 
-// Load data when the page loads
-fetchData();
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+            .then(() => console.log("Service Worker Registered"))
+            .catch(error => console.error("Service Worker Registration Failed:", error));
+    }
+}
+
