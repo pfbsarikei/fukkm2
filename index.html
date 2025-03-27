@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drug Information</title>
+    <link rel="manifest" href="manifest.json">
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         input { width: 100%; padding: 10px; margin-bottom: 10px; }
@@ -15,6 +16,13 @@
         .data { margin-bottom: 10px; }
     </style>
     <script defer src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(reg => console.log('Service Worker registered!', reg))
+                .catch(err => console.log('Service Worker registration failed!', err));
+        }
+    </script>
 </head>
 <body>
     <h2>Drug Information Search</h2>
@@ -23,4 +31,3 @@
     <div id="results" class="result"></div>
 </body>
 </html>
-
