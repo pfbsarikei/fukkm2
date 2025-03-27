@@ -1,4 +1,4 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzoBAlQ38wkelKu8gtA-FIJzllzPgippgHR1z2fgDgUJ1SPm_NEsJzHUgU3PBS-i6c/exec';  // Replace with your actual Web App URL
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZSnSPRni8Hezwy0HmQJZ6R9r9JWhRBXmVF-VGEO8aj5WufOtdchhswuf85CWCzBK8/exec';  // Replace with your actual Web App URL
 let drugData = [];
 let dropdown = document.getElementById('dropdown');
 let searchBar = document.getElementById('searchBar');
